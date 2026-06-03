@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Товар</title>
+</head>
+<body>
+    <h1>Список товаров</h1>
+    <nav>
+        <a href="/login">Вход</a>
+        <a href="/orders">Заказы</a>
+        <a href="/logout">Выход</a>
+    </nav>
+    <hr>
+    <% if (products.length === 0) { %>
+        <p>Нет товаров</p>
+        <% } else { %>
+        <% products.forEach(product => { %>
+            <div style="border: 1px solid #ccc; padding: 15px; margin-bottom: 15px;">
+                <h2><%= product.name %></h2>
+
+                <p><b>Артикул:</b> <%= product.article %></p>
+                <p><b>Категория:</b> <%= product.category %></p>
+                <p><b>Производитель:</b> <%= product.manufacturer %></p>
+                <p><b>Поставщик:</b> <%= product.supplier %></p>
+                <p><b>Единица измерения:</b> <%= product.unit %></p>
+                <p><b>Остаток:</b> <%= product.stock %></p>
+                <p><b>Цена:</b> <%= product.price %> руб.</p>
+                <p><b>Скидка:</b> <%= product.discount %>%</p>
+
+                <% if (product.discount > 0) { %>
+                    <p>
+                        <b>Цена со скидкой:</b>
+                        <%= (product.price - product.price * product.discount / 100).toFixed(2) %> руб.
+                    </p>
+                <% } %>
+
+                <% if (product.description) { %>
+                    <p><b>Описание:</b> <%= product.description %></p>
+                <% } %>
+            </div>
+        <% }) %>
+    <% } %>
+</body>
+</html>
