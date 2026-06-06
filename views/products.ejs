@@ -1,46 +1,154 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Товар</title>
+    <title>Товары</title>
 </head>
 <body>
     <h1>Список товаров</h1>
+
     <nav>
-        <a href="/login">Вход</a>
-        <a href="/orders">Заказы</a>
-        <a href="/logout">Выход</a>
-    </nav>
-    <hr>
-    <% if (products.length === 0) { %>
-        <p>Нет товаров</p>
+        <a href="/products">Товары</a>
+        <% if (user && (user.role === 'admin' || user.role === 'manager')) { %>
+            <a href="/orders">Заказы</a>
+        <% } %>
+        <% if (user) { %>
+            <span style="float:right;">
+                <%= user.fullName %> | <%= user.role %> | <a href="/logout">Выход</a>
+            </span>
         <% } else { %>
-        <% products.forEach(product => { %>
-            <div style="border: 1px solid #ccc; padding: 15px; margin-bottom: 15px;">
-                <h2><%= product.name %></h2>
+            <span style="float:right;">
+                Гость | <a href="/login">Вход</a>
+            </span>
+        <% } %>
+    </nav>
 
-                <p><b>Артикул:</b> <%= product.article %></p>
-                <p><b>Категория:</b> <%= product.category %></p>
-                <p><b>Производитель:</b> <%= product.manufacturer %></p>
-                <p><b>Поставщик:</b> <%= product.supplier %></p>
-                <p><b>Единица измерения:</b> <%= product.unit %></p>
-                <p><b>Остаток:</b> <%= product.stock %></p>
-                <p><b>Цена:</b> <%= product.price %> руб.</p>
-                <p><b>Скидка:</b> <%= product.discount %>%</p>
+    <hr>
+    <% if (message) { %>
+    <p class="message"><%= message %></p>
+<% } %>
 
-                <% if (product.discount > 0) { %>
-                    <p>
-                        <b>Цена со скидкой:</b>
-                        <%= (product.price - product.price * product.discount / 100).toFixed(2) %> руб.
-                    </p>
-                <% } %>
+<% if (error) { %>
+    <p class="error"><%= error %></p>
+<% } %>
+    <div style="margin-bottom: 20px;">
+    <input id="searchInput" type="text" placeholder="Поиск товара">
 
-                <% if (product.description) { %>
-                    <p><b>Описание:</b> <%= product.description %></p>
-                <% } %>
-            </div>
+    <select id="categoryFilter">
+        <option value="">Все категории</option>
+        <% categories.forEach(category => { %>
+            <option value="<%= category.name %>"><%= category.name %></option>
+        <% }) %>
+    </select>
+
+    <select id="sortSelect">
+        <option value="">Без сортировки</option>
+        <option value="name_asc">Название А-Я</option>
+        <option value="name_desc">Название Я-А</option>
+        <option value="price_asc">Цена ↑</option>
+        <option value="price_desc">Цена ↓</option>
+        <option value="discount_desc">Скидка ↓</option>
+    </select>
+<div id="productsList">
+    <% products.forEach(product => { %>
+        
+        <%
+            const price = Number(product.price);
+            const discount = Number(product.discount);
+            const finalPrice = price - price * discount / 100;
+
+            let bgClass = '';
+
+            if (product.stock <= 0) {
+                bgClass = 'no-stock';
+            } else if (discount > 15) {
+                bgClass = 'big-discount';
+            }
+        %>
+
+        <div 
+            class="product-card <%= bgClass %>"
+            data-name="<%= product.name.toLowerCase() %>"
+            data-article="<%= product.article.toLowerCase() %>"
+            data-author="<%= String(product.author || '').toLowerCase() %>"
+            data-category="<%= product.Category ? product.Category.name : '' %>"
+            data-price="<%= price %>"
+            data-discount="<%= discount %>"
+        >
+            <h2><%= product.name %></h2>
+
+            <p><b>Артикул:</b> <%= product.article %></p>
+            <p><b>Категория:</b> <%= product.Category ? product.Category.name : '' %></p>
+            <p><b>Автор:</b> <%= product.author %></p>
+            <p><b>Производитель:</b> <%= product.manufacturer %></p>
+            <p><b>Поставщик:</b> <%= product.supplier %></p>
+            <p><b>Единица измерения:</b> <%= product.unit %></p>
+            <p><b>Остаток:</b> <%= product.stock %></p>
+
+            <% if (discount > 0) { %>
+                <p>
+                    <b>Цена:</b>
+                    <span class="old-price"><%= price %> руб.</span>
+                    <span class="new-price"><%= finalPrice.toFixed(2) %> руб.</span>
+                </p>
+                <p><b>Скидка:</b> <%= discount %>%</p>
+            <% } else { %>
+                <p><b>Цена:</b> <%= price %> руб.</p>
+            <% } %>
+
+            <% if (product.description) { %>
+                <p><b>Описание:</b> <%= product.description %></p>
+            <% } %>
+
+           <% if (product.imagePath) { %>
+            <img src="/images/<%= product.imagePath %>" width="100">
+            <% } %>
+
+            <% if (user && user.role === 'admin') { %>
+        <p>
+        <a href="/products/<%= product.id %>/edit">Редактировать</a>
+        </p>
+
+        <form method="POST" action="/products/<%= product.id %>/delete">
+        <button type="submit">Удалить</button>
+        </form>
+<% } %>
+        </div>
+    <% }) %>
+</div>
         <% }) %>
     <% } %>
 </body>
+<script>
+const search = document.getElementById('search');
+const category = document.getElementById('category');
+const sort = document.getElementById('sort');
+
+function update() {
+    const cards = [...document.querySelectorAll('.product-card')];
+    const text = search.value.toLowerCase();
+
+    cards.forEach(card => {
+        const searchOk = card.dataset.name.includes(text) || card.dataset.article.includes(text);
+        const categoryOk = !category.value || card.dataset.category === category.value;
+
+        card.style.display = searchOk && categoryOk ? 'block' : 'none';
+    });
+
+    cards
+        .filter(card => card.style.display !== 'none')
+        .sort((a, b) => {
+            if (sort.value === 'priceUp') return a.dataset.price - b.dataset.price;
+            if (sort.value === 'priceDown') return b.dataset.price - a.dataset.price;
+            if (sort.value === 'nameUp') return a.dataset.name.localeCompare(b.dataset.name);
+            if (sort.value === 'nameDown') return b.dataset.name.localeCompare(a.dataset.name);
+            return 0;
+        })
+        .forEach(card => card.parentNode.appendChild(card));
+}
+
+search.oninput = update;
+category.onchange = update;
+sort.onchange = update;
+</script>
 </html>

@@ -1,38 +1,84 @@
 module.exports = (sequelize, DataTypes) => sequelize.define('Product', {
-  id: { 
-    type: DataTypes.INTEGER, 
-    autoIncrement: true, 
-    primaryKey: true 
+  id: {
+    type: DataTypes.INTEGER,
+    autoIncrement: true,
+    primaryKey: true
   },
-  article: { 
-    type: DataTypes.STRING, 
-    unique: true, 
-    allowNull: false },
-  name: { 
-    type: DataTypes.STRING, 
-    allowNull: false 
+
+  article: {
+    type: DataTypes.STRING(100),
+    allowNull: false,
+    unique: true
   },
-  unit: { 
-    type: DataTypes.STRING, 
-    defaultValue: 'шт.' 
+
+  name: {
+    type: DataTypes.STRING(200),
+    allowNull: false
   },
-  price: { 
-    type: DataTypes.DECIMAL(10,2), 
-    allowNull: false 
+
+  author: {
+    type: DataTypes.STRING(150),
+    allowNull: true
   },
-  supplier: DataTypes.STRING,
-  manufacturer: DataTypes.STRING,
-  category: DataTypes.STRING,
-  discount: { 
-    type: DataTypes.INTEGER, 
-    defaultValue: 0 
+
+  categoryId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    field: 'category_id'
   },
-  stock: 
-  { type: DataTypes.INTEGER, 
-    defaultValue: 0 
+
+  unit: {
+    type: DataTypes.STRING(30),
+    allowNull: false,
+    defaultValue: 'шт'
   },
-  description: 
-  { type: DataTypes.TEXT },
-  photo: DataTypes.STRING
-}, 
-{ tableName: 'products', timestamps: false });
+
+  price: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: false
+  },
+
+  discount: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 0
+  },
+
+  stock: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 0
+  },
+
+  supplier: {
+    type: DataTypes.STRING(150),
+    allowNull: true
+  },
+
+  manufacturer: {
+    type: DataTypes.STRING(150),
+    allowNull: true
+  },
+
+  description: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+
+  imagePath: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
+    defaultValue: 'picture.png',
+    field: 'image_path'
+  },
+
+  isActive: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: true,
+    field: 'is_active'
+  }
+}, {
+  tableName: 'products',
+  timestamps: false
+});

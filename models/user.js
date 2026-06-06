@@ -3,9 +3,15 @@ module.exports = (sequelize, DataTypes) => sequelize.define('User', {
     type: DataTypes.INTEGER, 
     autoIncrement: true, 
     primaryKey: true },
-  role: { 
-    type: DataTypes.ENUM('admin', 'manager', 'client', 'guest'), 
-    allowNull: false },
+  roleId:{ 
+    type: DataTypes.INTEGER, 
+    allowNull: false,
+    field: 'role_id',
+    references: { 
+      model: 'roles', 
+      key: 'id' 
+    } 
+  },
   fullName: { 
     type: DataTypes.STRING, 
     allowNull: false },

@@ -1,145 +1,178 @@
 const XLSX = require('xlsx');
-const sequelize = require('./db');
-require('./models');
+const path = require('path');
 
-const { User, Product, PickupPoint, Order, OrderItem } = sequelize.models;
+const {
+  sequelize,
+  Role,
+  User,
+  Category,
+  Product,
+  PickupPoint,
+  Order,
+  OrderItem
+} = require('./models');
 
-function read(file) {
-    const book = XLSX.readFile('./import/' + file);
-    const sheet = book.Sheets[book.SheetNames[0]];
-    return XLSX.utils.sheet_to_json(sheet);
-}
+const file = name => path.join(__dirname, 'import', name);
 
-function readNoHeader(file) {
-    const book = XLSX.readFile('./import/' + file);
-    const sheet = book.Sheets[book.SheetNames[0]];
-    return XLSX.utils.sheet_to_json(sheet, { header: 1 });
-}
+const read = name => {
+  const book = XLSX.readFile(file(name), { cellDates: true });
+  return XLSX.utils.sheet_to_json(book.Sheets[book.SheetNames[0]], { defval: '' });
+};
 
-function role(value) {
-    if (value === 'Администратор') return 'admin';
-    if (value === 'Менеджер') return 'manager';
-    return 'client';
-}
+const readNoHeader = name => {
+  const book = XLSX.readFile(file(name));
+  return XLSX.utils.sheet_to_json(book.Sheets[book.SheetNames[0]], { header: 1, defval: '' });
+};
 
-function status(value) {
-    return value === 'Завершен' || value === 'Завершён' ? 'completed' : 'new';
-}
-//заказы 
-function excelDate(value) {
-    if (!value) {
-        return new Date().toISOString().slice(0, 10);
-    }
+const txt = value => String(value || '').trim();
+const num = value => Number(value) || 0;
 
-    if (value instanceof Date) {
-        return value.toISOString().slice(0, 10);
-    }
+const date = value => {
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
 
-    if (typeof value === 'number') {
-        const date = new Date((value - 25569) * 86400 * 1000);
+  if (typeof value === 'number') {
+    return new Date((value - 25569) * 86400 * 1000).toISOString().slice(0, 10);
+  }
 
-        if (!isNaN(date.getTime())) {
-            return date.toISOString().slice(0, 10);
-        }
-    }
+  const parts = txt(value).match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
 
-    const date = new Date(value);
+  if (parts) {
+    const d = Number(parts[1]);
+    const m = Number(parts[2]);
+    const y = Number(parts[3]);
+    const lastDay = new Date(y, m, 0).getDate();
 
-    if (!isNaN(date.getTime())) {
-        return date.toISOString().slice(0, 10);
-    }
+    return new Date(y, m - 1, Math.min(d, lastDay)).toISOString().slice(0, 10);
+  }
 
-    return new Date().toISOString().slice(0, 10);
-}
-//заказы
+  return null;
+};
+
+const getRole = value => {
+  value = txt(value).toLowerCase();
+
+  if (value.includes('администратор')) return 'admin';
+  if (value.includes('менеджер')) return 'manager';
+
+  return 'client';
+};
+
+const parseItems = value => {
+  const parts = txt(value).split(',').map(x => x.trim());
+  const result = [];
+
+  for (let i = 0; i < parts.length; i += 2) {
+    result.push({
+      article: parts[i],
+      quantity: num(parts[i + 1]) || 1
+    });
+  }
+
+  return result;
+};
+
 async function start() {
-    await sequelize.sync();
+  await sequelize.authenticate();
+  await sequelize.sync({ alter: true });
 
-    await User.bulkCreate(read('user_import.xlsx').map(row => ({
-        role: role(row['Роль сотрудника']),
-        fullName: row['ФИО'],
-        login: row['Логин'],
-        password: row['Пароль']
-    })), { ignoreDuplicates: true });
+  await sequelize.query('SET FOREIGN_KEY_CHECKS = 0');
+  await OrderItem.truncate();
+  await Order.truncate();
+  await Product.truncate();
+  await User.truncate();
+  await PickupPoint.truncate();
+  await Category.truncate();
+  await sequelize.query('SET FOREIGN_KEY_CHECKS = 1');
 
-    console.log('Пользователи импортированы');
+  await Role.findOrCreate({ where: { name: 'client' } });
+  await Role.findOrCreate({ where: { name: 'manager' } });
+  await Role.findOrCreate({ where: { name: 'admin' } });
 
-    await Product.bulkCreate(read('Tovar.xlsx').map(row => ({
-        article: row['Артикул'],
-        name: row['Наименование товара'],
-        unit: row['Единица измерения'],
-        price: row['Цена'],
-        supplier: row['Поставщик'],
-        manufacturer: row['Производитель'],
-        category: row['Категория товара'],
-        discount: row['Действующая скидка'] || 0,
-        stock: row['Кол-во на складе'] || 0,
-        description: row['Описание товара'],
-        photo: row['Фото']
-    })), { ignoreDuplicates: true });
+  const roles = await Role.findAll();
+  const roleId = Object.fromEntries(roles.map(r => [r.name, r.id]));
 
-    console.log('Товары импортированы');
+  for (const row of readNoHeader('Пункты выдачи_import.xlsx')) {
+    if (txt(row[0])) {
+      await PickupPoint.findOrCreate({ where: { address: txt(row[0]) } });
+    }
+  }
 
-    const points = [];
+  for (const row of read('user_import.xlsx')) {
+    await User.create({
+      fullName: txt(row['ФИО']),
+      login: txt(row['Логин']),
+      password: txt(row['Пароль']),
+      roleId: roleId[getRole(row['Роль сотрудника'])]
+    });
+  }
 
-    readNoHeader('Пункты выдачи_import.xlsx').forEach(row => {
-        row.forEach(address => {
-            if (address) points.push({ address });
-        });
+  const productsRows = read('Tovar.xlsx');
+
+  for (const row of productsRows) {
+    const name = txt(row['Категория товара']);
+
+    if (name) {
+      await Category.findOrCreate({ where: { name } });
+    }
+  }
+
+  const categories = await Category.findAll();
+  const categoryId = Object.fromEntries(categories.map(c => [c.name, c.id]));
+
+  for (const row of productsRows) {
+    const supplier = txt(row['Поставщик']);
+
+    await Product.create({
+      article: txt(row['Артикул']),
+      name: txt(row['Наименование товара']),
+      author: supplier,
+      categoryId: categoryId[txt(row['Категория товара'])],
+      unit: txt(row['Единица измерения']) || 'шт.',
+      price: num(row['Цена']),
+      discount: num(row['Действующая скидка']),
+      stock: num(row['Кол-во на складе']),
+      supplier,
+      manufacturer: txt(row['Производитель']),
+      description: txt(row['Описание товара']),
+      imagePath: txt(row['Фото']) || 'picture.png',
+      isActive: true
+    });
+  }
+
+  const products = await Product.findAll();
+  const productId = Object.fromEntries(products.map(p => [p.article, p.id]));
+
+  const users = await User.findAll();
+  const userId = Object.fromEntries(users.map(u => [u.fullName, u.id]));
+
+  for (const row of read('Заказ_import.xlsx')) {
+    const order = await Order.create({
+      orderNumber: txt(row['Номер заказа']),
+      orderDate: date(row['Дата заказа']),
+      deliveryDate: date(row['Дата доставки']),
+      pickupPointId: num(row['Адрес пункта выдачи']),
+      userId: userId[txt(row['ФИО авторизированного клиента'])] || null,
+      clientFullName: txt(row['ФИО авторизированного клиента']),
+      receiveCode: txt(row['Код для получения']),
+      status: txt(row['Статус заказа'])
     });
 
-    await PickupPoint.bulkCreate(points, { ignoreDuplicates: true });
-
-    console.log('Пункты выдачи импортированы');
-
-//если время пиздец, то можно удалить и уебать через хтмл
-    const orders = read('Заказ_import.xlsx');
-
-    for (const row of orders) {
-        const client = await User.findOne({
-            where: { fullName: row['ФИО авторизированного клиента'] }
+    for (const item of parseItems(row['Артикул заказа'])) {
+      if (productId[item.article]) {
+        await OrderItem.create({
+          orderId: order.id,
+          productId: productId[item.article],
+          quantity: item.quantity
         });
-
-        if (!client) continue;
-
-        const [order] = await Order.findOrCreate({
-            where: { orderNumber: row['Номер заказа'] },
-            defaults: {
-                orderDate: excelDate(row['Дата заказа']),
-                deliveryDate: excelDate(row['Дата доставки']),
-                pickupPointId: row['Адрес пункта выдачи'],
-                clientId: client.id,
-                pickupCode: row['Код для получения'],
-                status: status(row['Статус заказа'])
-            }
-        });
-
-        const items = String(row['Артикул заказа']).split(',').map(x => x.trim());
-
-        for (let i = 0; i < items.length; i += 2) {
-            const product = await Product.findOne({
-                where: { article: items[i] }
-            });
-
-            if (!product) continue;
-
-            await OrderItem.findOrCreate({
-                where: {
-                    orderId: order.id,
-                    productId: product.id
-                },
-                defaults: {
-                    quantity: Number(items[i + 1]) || 1
-                }
-            });
-        }
+      }
     }
+  }
 
-    console.log('Заказы импортированы');
-    //нахуй
-    console.log('Импорт завершён');
-
-    process.exit();
+  console.log('Импорт завершён');
+  process.exit();
 }
 
-start();
+start().catch(error => {
+  console.log(error);
+  process.exit(1);
+});

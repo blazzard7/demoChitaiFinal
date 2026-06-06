@@ -9,7 +9,11 @@
 
     <nav>
         <a href="/products">Каталог товаров</a>
-        <a href="/logout">Выйти</a>
+        <% if (user) { %>
+            <span style="float:right;">
+                <%= user.fullName %> | <%= user.role %> | <a href="/logout">Выйти</a>
+            </span>
+        <% } %>
     </nav>
 
     <hr>
@@ -22,11 +26,27 @@
                 <h2>Заказ №<%= order.orderNumber %></h2>
 
                 <p><b>Дата заказа:</b> <%= order.orderDate %></p>
-                <p><b>Дата доставки:</b> <%= order.deliveryDate %></p>
-                <p><b>ID пункта выдачи:</b> <%= order.pickupPointId %></p>
-                <p><b>ID клиента:</b> <%= order.clientId %></p>
-                <p><b>Код получения:</b> <%= order.pickupCode %></p>
+                <p><b>Дата доставки:</b> <%= order.deliveryDate || '-' %></p>
+                <p><b>Пункт выдачи:</b> <%= order.PickupPoint ? order.PickupPoint.address : order.pickupPointId %></p>
+                <p><b>Клиент:</b> <%= order.clientFullName || (order.User ? order.User.fullName : '-') %></p>
+                <p><b>Код получения:</b> <%= order.receiveCode %></p>
                 <p><b>Статус:</b> <%= order.status %></p>
+
+                <p><b>Состав заказа:</b></p>
+
+                <% if (order.OrderItems && order.OrderItems.length > 0) { %>
+                    <ul>
+                        <% order.OrderItems.forEach(item => { %>
+                            <li>
+                                <%= item.Product ? item.Product.name : 'Товар удалён' %>
+                                —
+                                <%= item.quantity %> шт.
+                            </li>
+                        <% }) %>
+                    </ul>
+                <% } else { %>
+                    <p>Состав заказа отсутствует</p>
+                <% } %>
             </div>
         <% }) %>
     <% } %>

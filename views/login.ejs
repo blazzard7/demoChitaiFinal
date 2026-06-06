@@ -1,25 +1,34 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>вход</title>
+    <title>Вход | ЧитайГород</title>
+    <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-    <h1>Авторизация</h1>
-    <form action="/login" method="post">
-        <div>
-            <label for="login">Login:</label>
-            <input type="text" id="login" name="login" required>
-        </div>
-        <div>
-            <label for="password">Password:</label>
-            <input type="password" id="password" name="password" required>
-        </div>
-        <button type="submit">Login</button>
+
+<div class="login-page">
+    <form class="login-form" action="/login" method="POST">
+        <h1>ЧитайГород</h1>
+        <h2>Вход в систему</h2>
+
+        <% if (typeof error !== 'undefined' && error) { %>
+            <div class="error">
+                <%= error %>
+            </div>
+        <% } %>
+
+        <label>Логин</label>
+        <input type="text" name="login" required>
+
+        <label>Пароль</label>
+        <input type="password" name="password" required>
+
+        <button type="submit">Войти</button>
+
+        <a class="guest-link" href="/products">Войти как гость</a>
     </form>
-    <% if (error) { %>
-        <p style="color: red;"><%= error %></p>
-    <% } %>
+</div>
+
 </body>
 </html>

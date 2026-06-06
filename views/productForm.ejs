@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title><%= product ? 'Редактирование товара' : 'Добавление товара' %></title>
+</head>
+<body>
+    <h1><%= product ? 'Редактирование товара' : 'Добавление товара' %></h1>
+
+    <nav>
+        <a href="/products">Назад к товарам</a>
+        <span style="float:right;">
+            <%= user.fullName %> | <%= user.role %> | <a href="/logout">Выход</a>
+        </span>
+    </nav>
+
+    <hr>
+
+    <form method="POST" action="<%= product ? '/products/' + product.id + '/edit' : '/products/add' %>">
+        <p>
+            <label>Артикул</label><br>
+            <input name="article" value="<%= product ? product.article : '' %>" required>
+        </p>
+
+        <p>
+            <label>Название</label><br>
+            <input name="name" value="<%= product ? product.name : '' %>" required>
+        </p>
+
+        <p>
+            <label>Автор</label><br>
+            <input name="author" value="<%= product ? product.author : '' %>">
+        </p>
+
+        <p>
+            <label>Категория</label><br>
+            <select name="categoryId" required>
+                <% categories.forEach(category => { %>
+                    <option value="<%= category.id %>"
+                        <%= product && product.categoryId === category.id ? 'selected' : '' %>>
+                        <%= category.name %>
+                    </option>
+                <% }) %>
+            </select>
+        </p>
+
+        <p>
+            <label>Единица измерения</label><br>
+            <input name="unit" value="<%= product ? product.unit : 'шт.' %>">
+        </p>
+
+        <p>
+            <label>Цена</label><br>
+            <input type="number" step="0.01" name="price" value="<%= product ? product.price : '' %>" required>
+        </p>
+
+        <p>
+            <label>Скидка</label><br>
+            <input type="number" name="discount" value="<%= product ? product.discount : 0 %>">
+        </p>
+
+        <p>
+            <label>Остаток</label><br>
+            <input type="number" name="stock" value="<%= product ? product.stock : 0 %>">
+        </p>
+
+        <p>
+            <label>Поставщик</label><br>
+            <input name="supplier" value="<%= product ? product.supplier : '' %>">
+        </p>
+
+        <p>
+            <label>Производитель</label><br>
+            <input name="manufacturer" value="<%= product ? product.manufacturer : '' %>">
+        </p>
+
+        <p>
+            <label>Описание</label><br>
+            <textarea name="description"><%= product ? product.description : '' %></textarea>
+        </p>
+
+        <p>
+            <label>Изображение</label><br>
+            <input name="imagePath" value="<%= product ? product.imagePath : 'picture.png' %>">
+        </p>
+
+        <button type="submit">Сохранить</button>
+    </form>
+</body>
+</html>
